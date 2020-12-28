@@ -88,11 +88,11 @@
             }
         </style>
         <script>
-            let y_cen = 37.4981125   // lat
-            let x_cen = 127.0379399  // long
+            let y_cen = 37.4981125;   // lat
+            let x_cen = 127.0379399;  // long
             let map;
-            let markers = []
-            let infowindows = []
+            let markers = [];
+            let infowindows = [];
             $(document).ready(function () {
                 map = new naver.maps.Map('map', {
                     center: new naver.maps.LatLng(y_cen, x_cen),
@@ -105,23 +105,28 @@
                 });
 
                 get_matjips()
-            })
+            });
 
             function get_matjips() {
                 $('#matjip-box').empty();
-                markers = []
-                infowindows = []
+                for (let i = 0; i < markers.length; i++) {
+                    markers[i].setMap(null);
+                    infowindows[i].close()
+                }
+                markers = [];
+                infowindows = [];
+
                 $.ajax({
                     type: "GET",
                     url: `/matjip`,
                     data: {},
                     success: function (response) {
-                        let matjips = response["matjip_list"]
-                        console.log(matjips.length)
+                        let matjips = response["matjip_list"];
+                        console.log(matjips.length);
                         for (let i = 0; i < matjips.length; i++) {
-                            let matjip = matjips[i]
-                            make_card(i, matjip)
-                            let marker = make_marker(matjip)
+                            let matjip = matjips[i];
+                            make_card(i, matjip);
+                            let marker = make_marker(matjip);
                             add_info(i, marker, matjip)
                         }
                     }
@@ -129,23 +134,46 @@
             }
 
             function make_marker(matjip) {
+                let marker_img = '';
+                if ("liked" in matjip) {
+                    marker_img = '{{ url_for("static", filename="marker-liked.png") }}'
+                } else {
+                    marker_img = '{{ url_for("static", filename="marker-default.png") }}'
+                }
                 let marker = new naver.maps.Marker({
                     position: new naver.maps.LatLng(matjip["mapy"], matjip["mapx"]),
-                    map: map
+                    map: map,
+                    icon: marker_img
                 });
-                markers.push(marker)
+                markers.push(marker);
                 return marker
             }
 
             function make_card(i, matjip) {
-                let html_temp = `<div class="card" id="card-${i}">
+                let html_temp = ``;
+                if ("liked" in matjip) {
+                    html_temp = `<div class="card" id="card-${i}">
                                     <div class="card-body">
                                         <h5 class="card-title"><a href="javascript:click2center(${i})" class="matjip-title">${matjip['title']}</a></h5>
                                         <h6 class="card-subtitle mb-2 text-muted">${matjip['category']}</h6>
+                                        <i class="fa fa-bookmark" onclick="bookmark('${matjip['title']}', '${matjip['address']}', 'unlike')"></i>
                                         <p class="card-text">${matjip['address']}</p>
                                         <p class="card-text" style="color:blue;">${matjip['show']}</p>
                                     </div>
                                  </div>`;
+                } else {
+                    html_temp = `<div class="card" id="card-${i}">
+                                    <div class="card-body">
+                                        <h5 class="card-title"><a href="javascript:click2center(${i})" class="matjip-title">${matjip['title']}</a></h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">${matjip['category']}</h6>
+                                        <i class="fa fa-bookmark-o" onclick="bookmark('${matjip['title']}', '${matjip['address']}', 'like')"></i>
+                                        <p class="card-text">${matjip['address']}</p>
+                                        <p class="card-text" style="color:blue;">${matjip['show']}</p>
+                                    </div>
+                                 </div>`;
+                }
+
+
                 $('#matjip-box').append(html_temp);
             }
 
@@ -165,14 +193,14 @@
                     anchorColor: "#fff",
                     pixelOffset: new naver.maps.Point(10, -10)
                 });
-                infowindows.push(infowindow)
+                infowindows.push(infowindow);
                 naver.maps.Event.addListener(marker, "click", function (e) {
-                    console.log("clicked", infowindows.length)
+                    console.log("clicked", infowindows.length);
                     if (infowindow.getMap()) {
                         infowindow.close();
                     } else {
                         infowindow.open(map, marker);
-                        map.setCenter(infowindow.position)
+                        map.setCenter(infowindow.position);
                         $("#matjip-box").animate({
                             scrollTop: $("#matjip-box").get(0).scrollTop + $(`#card-${i}`).position().top
                         }, 2000);
@@ -181,14 +209,31 @@
             }
 
             function click2center(i) {
-                let marker = markers[i]
-                let infowindow = infowindows[i]
+                let marker = markers[i];
+                let infowindow = infowindows[i];
                 if (infowindow.getMap()) {
                     infowindow.close();
                 } else {
                     infowindow.open(map, marker);
                     map.setCenter(infowindow.position)
                 }
+            }
+
+            function bookmark(title, address, action) {
+                $.ajax({
+                    type: "POST",
+                    url: "/like_matjip",
+                    data: {
+                        title_give: title,
+                        address_give: address,
+                        action_give: action
+                    },
+                    success: function (response) {
+                        if (response["result"] == "success") {
+                            get_matjips()
+                        }
+                    }
+                })
             }
         </script>
 
